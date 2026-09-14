@@ -1,0 +1,170 @@
+/* ==========================================================================
+   Base Layout & Map Canvas
+   ========================================================================== */
+html,
+body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#map {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 0;
+}
+
+/* ==========================================================================
+   Sliding Bottom Sheet Drawer (Peeking State)
+   ========================================================================== */
+.bottom-sheet {
+  /* Leaves exactly 56px peeking out at the bottom when closed */
+  transform: translateY(calc(100% - 56px));
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.bottom-sheet.open {
+  transform: translateY(0);
+}
+
+.bottom-sheet.dragging {
+  transition: none !important;
+}
+
+.sheet-header {
+  touch-action: none;
+  cursor: grab;
+}
+
+.sheet-header:active {
+  cursor: grabbing;
+}
+
+.stop-fav-btn.is-fav svg {
+  fill: currentColor;
+}
+
+/* ==========================================
+   Custom Minimalist Scrollbars
+   ========================================== */
+.custom-scrollbar::-webkit-scrollbar,
+.overflow-y-auto::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track,
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb,
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover,
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ==========================================================================
+   Bus Marker & Fluid 3s Movement Interpolation
+   ========================================================================== */
+.bus-marker-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  transition: transform 3s linear !important;
+  will-change: transform;
+}
+
+.bus-tag-top {
+  background-color: #0284c7;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 6px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.15), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  white-space: nowrap;
+  letter-spacing: 0.025em;
+  margin-bottom: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.bus-tag-bottom {
+  background-color: #0f172a;
+  color: #f8fafc;
+  font-size: 9px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 700;
+  padding: 1.5px 6px;
+  border-radius: 5px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
+  margin-top: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.bus-pulse {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 171, 228, 0.45);
+  animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  pointer-events: none;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.9); opacity: 0.85; }
+  70% { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+/* ==========================================================================
+   Journey Stops Timeline
+   ========================================================================== */
+.tl-row { display: flex; gap: 10px; padding: 9px 2px; }
+.tl-row-dim { opacity: 0.45; }
+.tl-rail { width: 18px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; }
+.tl-line-top, .tl-line-bottom { width: 2px; flex: 1; background: #e2e8f0; }
+.tl-row:first-child .tl-line-top, .tl-row:last-child .tl-line-bottom { background: transparent; }
+
+.tl-dot {
+  width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; margin: 3px 0; box-sizing: border-box; background: #ffffff; border: 2px solid #cbd5e1;
+}
+.tl-dot.boarding { background: #10B981; border-color: #10B981; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18); }
+.tl-dot.destination { background: #f43f5e; border-color: #f43f5e; box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.18); }
+.tl-dot.live { background: #f59e0b; border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18); animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
+.tl-dot.transfer { background: #00ABE4; border-color: #00ABE4; box-shadow: 0 0 0 3px rgba(0, 171, 228, 0.18); }
+.tl-dot.passed { border-color: #e2e8f0; }
+
+.tl-content { flex: 1; min-width: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding-top: 1px; }
+.tl-name { font-weight: 700; font-size: 12.5px; color: #1e293b; }
+.tl-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+.tl-time { font-weight: 800; font-size: 12.5px; color: #1e293b; white-space: nowrap; }
+.tl-status { font-size: 10.5px; font-weight: 700; margin-top: 2px; white-space: nowrap; }
+.tl-transfer-divider { margin: 4px 0 4px 28px; padding: 6px 10px; background: #e7f8fd; border: 1px dashed #00ABE4; border-radius: 10px; font-size: 11px; font-weight: 800; color: #0091C2; }
+
+/* ==========================================================================
+   Leaflet UI Overrides
+   ========================================================================== */
+.leaflet-container { font-family: inherit; }
+.leaflet-popup-content-wrapper { border-radius: 12px; padding: 4px 6px; font-size: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1); }
+.leaflet-popup-tip { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+button, input, li { -webkit-tap-highlight-color: transparent; }

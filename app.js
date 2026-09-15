@@ -1098,12 +1098,7 @@ function findMatchingRoutes(pName, dName) {
     }
   }
 
-  // Direct routes always prioritized
-  if (directMatches.length > 0) {
-    return { direct: directMatches, transfers: [] };
-  }
-
-  // 2. 1-Transfer Discovery
+  // 2. 1-Transfer Discovery (Always execute so live transfers can compete with inactive direct routes)
   for (const r1Key of allRouteKeys) {
     const r1 = window.ROUTES_DATABASE[r1Key];
     if (!r1) continue;
@@ -1248,7 +1243,7 @@ function findMatchingRoutes(pName, dName) {
     return liveScoreB - liveScoreA || a.totalDist - b.totalDist;
   });
 
-  return { direct: [], transfers: candidateTransfers.slice(0, 2) };
+  return { direct: directMatches, transfers: candidateTransfers.slice(0, 3) };
 }
 
 function handleSearchClick() {
@@ -1277,7 +1272,18 @@ function handleSearchClick() {
     switchMobileTab('buses');
   }
 
-  if (hasDirect) {
+  // Prioritize live transit over scheduled corridors
+  const hasLiveDirect = hasDirect && lastSearchResult.direct.some(r => {
+    return checkLegLiveAvailability(r.routeKey, r.direction, r.pIdx, r.stops);
+  });
+
+  const hasLiveTransfer = hasTransfers && lastSearchResult.transfers.some(t => t.hasLiveLeg1);
+
+  if (hasLiveDirect) {
+    selectDirectOption(0, false);
+  } else if (hasLiveTransfer) {
+    selectTransferOption(0, false);
+  } else if (hasDirect) {
     selectDirectOption(0, false);
   } else {
     selectTransferOption(0, false);
@@ -1929,7 +1935,8 @@ function updateAvailableBusesList() {
         });
       }
 
-      allCards.push({ priority: isLeg1Live ? 1 : 4, etaSec: etaSec, elem: card });
+      // Priority 1 for live transfer, 3 for scheduled transfer
+      allCards.push({ priority: isLeg1Live ? 1 : 3, etaSec: etaSec, elem: card });
     });
   }
 
@@ -2167,7 +2174,8 @@ function updateAvailableBusesList() {
           });
         }
 
-        allCards.push({ priority: 3, etaSec: Infinity, elem: card });
+        // Priority 2 for scheduled direct lines (above scheduled transfers, but below live transfers)
+        allCards.push({ priority: 2, etaSec: Infinity, elem: card });
       });
     }
   }

@@ -3,12 +3,10 @@ lucide.createIcons();
 // ==========================================
 // 1. GLOBAL STRING NORMALIZER & UTILITIES
 // ==========================================
-function normalizeStr(str) {
-  if (!str) return "";
-  return str.toString()
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-}
+const RAD = Math.PI / 180;
+const EARTH_RADIUS = 6371e3;
+const CHIP_HOLD_MS = 600;
+const SAVED_PLACES_STORAGE_KEY = "nexbus_saved_places_v1";
 
 // Global Application State
 let activeRouteKey = null;
@@ -28,12 +26,32 @@ let shouldResetScrollOnNextRender = false;
 let savedPlaces = { home: null, work: null, favorites: [] };
 let chipHoldTimer = null;
 let chipHoldFired = false;
-const CHIP_HOLD_MS = 600;
-const SAVED_PLACES_STORAGE_KEY = "nexbus_saved_places_v1";
 
 const activeBuses = {};
 const activeBusMarkers = {};
+const breadcrumbLines = {};
 let selectedBusPlate = null;
+
+let routePolylineLayer = null;
+let approachPolylineLayer = null;
+let leg1PolylineLayer = null;
+let leg2PolylineLayer = null;
+
+function normalizeStr(str) {
+  if (!str) return "";
+  return str.toString()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function getDistanceMeters(lat1, lon1, lat2, lon2) {
+  const dLat = (lat2 - lat1) * RAD;
+  const dLon = (lon2 - lon1) * RAD;
+  const a = Math.sin(dLat * 0.5) * Math.sin(dLat * 0.5) +
+            Math.cos(lat1 * RAD) * Math.cos(lat2 * RAD) *
+            Math.sin(dLon * 0.5) * Math.sin(dLon * 0.5);
+  return EARTH_RADIUS * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
 
 // Fuzzy stop matcher that tolerates name variations
 function findStopIndexInList(stops, targetStop) {
@@ -49,6 +67,20 @@ function findStopIndexInList(stops, targetStop) {
     return sNorm.includes(targetNorm) || targetNorm.includes(sNorm) || (s.area && normalizeStr(s.area).includes(targetNorm));
   });
   return idx;
+}
+
+function findBusNearestStopIndex(busLat, busLng, stops) {
+  if (!stops || stops.length === 0) return 0;
+  let closestIdx = 0;
+  let minDistance = Infinity;
+  for (let i = 0; i < stops.length; i++) {
+    const d = getDistanceMeters(busLat, busLng, stops[i].lat, stops[i].lng);
+    if (d < minDistance) {
+      minDistance = d;
+      closestIdx = i;
+    }
+  }
+  return closestIdx;
 }
 
 // ==========================================
@@ -103,7 +135,7 @@ window.addEventListener('resize', () => {
 });
 
 // ==========================================
-// 2. LEAFLET MAP SETUP (ESRI WORLD STREET MAP - NO API KEY / NO WATERMARK)
+// 2. LEAFLET MAP SETUP
 // ==========================================
 const map = L.map('map', { center: [22.5000, 88.2500], zoom: 12, zoomControl: false });
 
@@ -112,10 +144,11 @@ L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_M
   attribution: 'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, METI, TomTom'
 }).addTo(map);
 
+const stopMarkersLayer = L.layerGroup().addTo(map);
+
 map.on('click', () => closeBottomSheet());
 map.on('dragstart', () => closeBottomSheet());
 
-// Temporarily disable marker transition during map pan/drag to avoid visual lag
 map.on('movestart', () => {
   document.querySelectorAll('.bus-marker-wrapper').forEach(el => {
     el.style.transition = 'none';
@@ -127,13 +160,6 @@ map.on('moveend', () => {
     el.style.transition = 'transform 3s linear';
   });
 });
-
-let routePolylineLayer = null;
-let approachPolylineLayer = null;
-let leg1PolylineLayer = null;
-let leg2PolylineLayer = null;
-let stopMarkersLayer = L.layerGroup().addTo(map);
-let breadcrumbLines = {};
 
 function createDynamicBusMapIcon(routeString, busPlate, heading = 0, destTerminal = "") {
   const rotationStyle = (heading !== undefined && heading !== null) 
@@ -169,8 +195,8 @@ function createDynamicBusMapIcon(routeString, busPlate, heading = 0, destTermina
         </div>
       </div>
     `,
-    iconSize: [0, 0],
-    iconAnchor: [0, 0]
+    iconSize: [36, 60],
+    iconAnchor: [18, 30]
   });
 }
 
@@ -213,15 +239,14 @@ function formatEtaTime(seconds) {
   return hours > 0 ? (mins > 0 ? `${hours} hr ${mins} mins` : `${hours} hr`) : `${mins} mins`;
 }
 
+function formatClockTime(secondsFromNow) {
+  if (!isFinite(secondsFromNow) || secondsFromNow < 0) return "--:--";
+  return new Date(Date.now() + secondsFromNow * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
 // ==========================================
 // JOURNEY TIMELINE RENDER HELPERS
 // ==========================================
-function formatClockTime(secondsFromNow) {
-  if (!isFinite(secondsFromNow) || secondsFromNow < 0) return "--:--";
-  const d = new Date(Date.now() + secondsFromNow * 1000);
-  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-}
-
 function tlRow({ name, badge, subLabel, timeLabel, statusText, statusClass, dotState, dim, active }) {
   return `
     <div class="tl-row${dim ? ' tl-row-dim' : ''}${active ? ' active-target-stop' : ''}">
@@ -252,30 +277,6 @@ function setTimelineHTML(rowsHtmlArray) {
   if (container) container.innerHTML = rowsHtmlArray.join("");
 }
 
-function getDistanceMeters(lat1, lon1, lat2, lon2) {
-  const R = 6371e3;
-  const phi1 = lat1 * Math.PI / 180;
-  const phi2 = lat2 * Math.PI / 180;
-  const dPhi = (lat2 - lat1) * Math.PI / 180;
-  const dLam = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dPhi/2) * Math.sin(dPhi/2) + Math.cos(phi1)*Math.cos(phi2) * Math.sin(dLam/2)*Math.sin(dLam/2);
-  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
-}
-
-function findBusNearestStopIndex(busLat, busLng, stops) {
-  if (!stops || stops.length === 0) return 0;
-  let closestIdx = 0;
-  let minDirect = Infinity;
-  for (let i = 0; i < stops.length; i++) {
-    const d = getDistanceMeters(busLat, busLng, stops[i].lat, stops[i].lng);
-    if (d < minDirect) {
-      minDirect = d;
-      closestIdx = i;
-    }
-  }
-  return closestIdx;
-}
-
 function calculateEtaSeconds(busLat, busLng, busSpeedKmph, targetStopIdx, stops) {
   if (!stops || targetStopIdx < 0 || targetStopIdx >= stops.length) return Infinity;
 
@@ -295,8 +296,7 @@ function calculateEtaSeconds(busLat, busLng, busSpeedKmph, targetStopIdx, stops)
   let intermediateStops = 0;
 
   for (let i = busIdx + 1; i <= targetStopIdx; i++) {
-    const prev = stops[i - 1];
-    accDist += getDistanceMeters(prev.lat, prev.lng, stops[i].lat, stops[i].lng) * 1.18;
+    accDist += getDistanceMeters(stops[i - 1].lat, stops[i - 1].lng, stops[i].lat, stops[i].lng) * 1.18;
     intermediateStops++;
   }
 
@@ -310,8 +310,7 @@ function calculateAccurateBusToStopDistance(busLat, busLng, targetStopIdx, stops
 
   let accDist = getDistanceMeters(busLat, busLng, stops[busIdx].lat, stops[busIdx].lng) * 1.18;
   for (let i = busIdx + 1; i <= targetStopIdx; i++) {
-    const prev = stops[i - 1];
-    accDist += getDistanceMeters(prev.lat, prev.lng, stops[i].lat, stops[i].lng) * 1.18;
+    accDist += getDistanceMeters(stops[i - 1].lat, stops[i - 1].lng, stops[i].lat, stops[i].lng) * 1.18;
   }
   return accDist;
 }
@@ -329,10 +328,7 @@ function calculateTripSummary(pickupStop, destStop, stopsList, effectiveSpeedKmp
   let intermediateStops = 0;
 
   for (let i = pIdx + 1; i <= dIdx; i++) {
-    const prev = stopsList[i - 1];
-    const curr = stopsList[i];
-    const segmentDist = getDistanceMeters(prev.lat, prev.lng, curr.lat, curr.lng);
-    totalMeters += segmentDist * 1.18;
+    totalMeters += getDistanceMeters(stopsList[i - 1].lat, stopsList[i - 1].lng, stopsList[i].lat, stopsList[i].lng) * 1.18;
     intermediateStops++;
   }
 
@@ -351,8 +347,7 @@ function checkLegLiveAvailability(routeKey, direction, maxStopIdx, stops) {
   if (!stops || stops.length === 0) return false;
   return Object.values(activeBuses).some(b => {
     const isLine = normalizeStr(b.routeKey || b.route).includes(normalizeStr(routeKey)) || normalizeStr(routeKey).includes(normalizeStr(b.routeKey || b.route));
-    const isDir = (b.busDir === direction);
-    if (!isLine || !isDir) return false;
+    if (!isLine || b.busDir !== direction) return false;
     const bIdx = findBusNearestStopIndex(b.lat, b.lng, stops);
     return maxStopIdx === -1 || bIdx <= maxStopIdx;
   });
@@ -362,7 +357,6 @@ function checkLegLiveAvailability(routeKey, direction, maxStopIdx, stops) {
 // 4-TIER DIRECTION DETECTION
 // ==========================================
 function updateBusDirectionFromMovement(busPlate, newLat, newLng, newHeading, newSpeedKmph, payloadDir, routeConfig) {
-  // Tier 1: Explicit Payload Override
   if (payloadDir && (payloadDir.toUpperCase() === "UP" || payloadDir.toUpperCase() === "DOWN")) {
     return payloadDir.toUpperCase();
   }
@@ -373,10 +367,8 @@ function updateBusDirectionFromMovement(busPlate, newLat, newLng, newHeading, ne
   const fStops = routeConfig.forwardStops || [];
   const rStops = routeConfig.returnStops || [];
 
-  // Tier 2: Sequential Stop Progression
   if (prev && fStops.length > 0) {
-    const moved = getDistanceMeters(prev.lat, prev.lng, newLat, newLng);
-    if (moved >= 12.0) {
+    if (getDistanceMeters(prev.lat, prev.lng, newLat, newLng) >= 12.0) {
       const prevIdx = findBusNearestStopIndex(prev.lat, prev.lng, fStops);
       const currIdx = findBusNearestStopIndex(newLat, newLng, fStops);
       if (currIdx > prevIdx) return "UP";
@@ -384,7 +376,6 @@ function updateBusDirectionFromMovement(busPlate, newLat, newLng, newHeading, ne
     }
   }
 
-  // Tier 3: Compass Heading Azimuth
   if (newSpeedKmph >= 3.0 && newHeading !== undefined && newHeading !== null && newHeading >= 0) {
     if (newHeading >= 15 && newHeading <= 165) return "UP";
     if (newHeading >= 195 && newHeading <= 345) return "DOWN";
@@ -394,7 +385,6 @@ function updateBusDirectionFromMovement(busPlate, newLat, newLng, newHeading, ne
     return prev.busDir;
   }
 
-  // Tier 4: Terminal Proximity Fallback
   if (fStops.length > 0 && rStops.length > 0) {
     const dToUpStart = getDistanceMeters(newLat, newLng, fStops[0].lat, fStops[0].lng);
     const dToDownStart = getDistanceMeters(newLat, newLng, rStops[0].lat, rStops[0].lng);
@@ -462,10 +452,16 @@ function setupStopAutocomplete(inputId, dropdownId, type) {
           <div class="text-xs sm:text-sm font-semibold text-slate-800 truncate">${stop.name}</div>
           <div class="text-[10px] sm:text-xs text-slate-400 truncate">${stop.area || 'Bus Stop'}</div>
         </div>
-        <button class="stop-fav-btn shrink-0 w-7 h-7 rounded-full hover:bg-[#00ABE4]/10 flex items-center justify-center transition-colors ${isFav ? 'is-fav text-[#00ABE4]' : 'text-slate-300'}" onclick='event.stopPropagation(); toggleFavoriteStopByName(${JSON.stringify(stop.name)}, this);' title="${isFav ? 'Remove from Favorites' : 'Add to Favorites'}">
+        <button class="stop-fav-btn shrink-0 w-7 h-7 rounded-full hover:bg-[#00ABE4]/10 flex items-center justify-center transition-colors ${isFav ? 'is-fav text-[#00ABE4]' : 'text-slate-300'}" title="${isFav ? 'Remove from Favorites' : 'Add to Favorites'}">
           <i data-lucide="star" class="w-3.5 h-3.5"></i>
         </button>
       `;
+
+      const favBtn = li.querySelector('.stop-fav-btn');
+      favBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleFavoriteStopByName(stop.name, favBtn);
+      });
 
       li.addEventListener('click', () => {
         input.value = stop.name;
@@ -692,17 +688,28 @@ function renderFavoritesDropdown() {
     return;
   }
 
-  dropdown.innerHTML = savedPlaces.favorites.map((f, idx) => `
-    <li class="px-3 py-2.5 hover:bg-[#00ABE4]/5 cursor-pointer flex items-center gap-2.5 transition-colors" onclick="selectFavorite(${idx})">
+  dropdown.innerHTML = "";
+  savedPlaces.favorites.forEach((f, idx) => {
+    const li = document.createElement("li");
+    li.className = "px-3 py-2.5 hover:bg-[#00ABE4]/5 cursor-pointer flex items-center gap-2.5 transition-colors";
+    li.innerHTML = `
       <div class="w-6 h-6 rounded-lg bg-[#00ABE4]/10 text-[#00ABE4] flex items-center justify-center shrink-0">
         <i data-lucide="star" class="w-3 h-3"></i>
       </div>
       <span class="flex-1 min-w-0 text-xs font-semibold text-slate-800 truncate">${f.name}</span>
-      <button onclick="event.stopPropagation(); removeFavorite(${idx});" class="w-6 h-6 rounded-full hover:bg-[#00ABE4]/10 text-slate-300 hover:text-[#00ABE4] flex items-center justify-center shrink-0">
+      <button class="remove-fav-btn w-6 h-6 rounded-full hover:bg-[#00ABE4]/10 text-slate-300 hover:text-[#00ABE4] flex items-center justify-center shrink-0">
         <i data-lucide="x" class="w-3.5 h-3.5"></i>
       </button>
-    </li>
-  `).join('');
+    `;
+
+    li.addEventListener("click", () => selectFavorite(idx));
+    li.querySelector(".remove-fav-btn").addEventListener("click", (e) => {
+      e.stopPropagation();
+      removeFavorite(idx);
+    });
+
+    dropdown.appendChild(li);
+  });
   lucide.createIcons();
 }
 
@@ -951,7 +958,7 @@ function updateDirectionBannerText() {
     const totalLines = activeMatchingRoutes.length;
     labelElem.innerHTML = `
       <div class="flex items-center gap-1.5 flex-wrap">
-        <button onclick="openLinesModal()" class="bg-sky-100 hover:bg-sky-200 active:scale-95 text-sky-800 px-2 py-0.5 rounded-lg text-[9px] font-extrabold shrink-0 flex items-center gap-1 border border-sky-200 transition-all cursor-pointer shadow-sm">
+        <button id="openLinesBtn" class="bg-sky-100 hover:bg-sky-200 active:scale-95 text-sky-800 px-2 py-0.5 rounded-lg text-[9px] font-extrabold shrink-0 flex items-center gap-1 border border-sky-200 transition-all cursor-pointer shadow-sm">
           <span>${totalLines} LINES</span>
           <i data-lucide="chevron-right" class="w-3 h-3"></i>
         </button>
@@ -962,6 +969,7 @@ function updateDirectionBannerText() {
         </div>
       </div>
     `;
+    document.getElementById("openLinesBtn")?.addEventListener("click", openLinesModal);
     lucide.createIcons();
     updateTripStatusBadge();
     return;
@@ -1044,8 +1052,8 @@ function closeLinesModal() {
 // 5. UNIFIED NO-BACKTRACK TRANSIT DISCOVERY ENGINE
 // ==========================================
 function findMatchingRoutes(pName, dName) {
-  let pNorm = normalizeStr(pName);
-  let dNorm = normalizeStr(dName);
+  const pNorm = normalizeStr(pName);
+  const dNorm = normalizeStr(dName);
   const directMatches = [];
   const rawTransfers = [];
 
@@ -1102,7 +1110,7 @@ function findMatchingRoutes(pName, dName) {
     ];
 
     for (const leg1 of directions1) {
-      let pIdx = leg1.stops.findIndex(s => {
+      const pIdx = leg1.stops.findIndex(s => {
         const n = normalizeStr(s.name);
         return n.includes(pNorm) || pNorm.includes(n) || (s.area && normalizeStr(s.area).includes(pNorm));
       });
@@ -1120,7 +1128,7 @@ function findMatchingRoutes(pName, dName) {
         ];
 
         for (const leg2 of directions2) {
-          let d2Idx = leg2.stops.findIndex(s => {
+          const d2Idx = leg2.stops.findIndex(s => {
             const n = normalizeStr(s.name);
             return n.includes(dNorm) || dNorm.includes(n) || (s.area && normalizeStr(s.area).includes(dNorm));
           });
@@ -1436,6 +1444,14 @@ function startTracking() {
   }
 }
 
+function clearRenderedPolylines() {
+  if (routePolylineLayer) { map.removeLayer(routePolylineLayer); routePolylineLayer = null; }
+  if (approachPolylineLayer) { map.removeLayer(approachPolylineLayer); approachPolylineLayer = null; }
+  if (leg1PolylineLayer) { map.removeLayer(leg1PolylineLayer); leg1PolylineLayer = null; }
+  if (leg2PolylineLayer) { map.removeLayer(leg2PolylineLayer); leg2PolylineLayer = null; }
+  stopMarkersLayer.clearLayers();
+}
+
 function cancelTracking() {
   isTrackingConfirmed = false;
 
@@ -1446,7 +1462,7 @@ function cancelTracking() {
   document.getElementById("floatingBusCard").classList.add("hidden");
   document.getElementById("tripStatsPill").classList.add("hidden");
   
-  renderRoutePins(false);
+  clearRenderedPolylines();
   updateAvailableBusesList();
   updateTripStatusBadge();
 
@@ -1559,11 +1575,7 @@ function renderSchedulePreview() {
 }
 
 function renderRoutePins(autoFit = false) {
-  if (routePolylineLayer) { map.removeLayer(routePolylineLayer); routePolylineLayer = null; }
-  if (approachPolylineLayer) { map.removeLayer(approachPolylineLayer); approachPolylineLayer = null; }
-  if (leg1PolylineLayer) { map.removeLayer(leg1PolylineLayer); leg1PolylineLayer = null; }
-  if (leg2PolylineLayer) { map.removeLayer(leg2PolylineLayer); leg2PolylineLayer = null; }
-  stopMarkersLayer.clearLayers();
+  clearRenderedPolylines();
 
   if (!isTrackingConfirmed || !selectedPickupStop || !selectedDestStop) return;
 
@@ -1888,12 +1900,12 @@ function updateAvailableBusesList() {
 
         <div class="mt-2 sm:mt-2.5">
           ${isCurrentlyTracked ? `
-            <button onclick="event.stopPropagation(); cancelTracking();" class="w-full bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white font-bold text-xs py-2 px-3.5 rounded-xl shadow-md shadow-rose-600/20 flex items-center justify-center gap-1.5 transition-all">
+            <button class="track-btn cancel-btn w-full bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white font-bold text-xs py-2 px-3.5 rounded-xl shadow-md shadow-rose-600/20 flex items-center justify-center gap-1.5 transition-all">
               <i data-lucide="x" class="w-3.5 h-3.5"></i>
               <span>Cancel Tracking</span>
             </button>
           ` : `
-            <button onclick="event.stopPropagation(); selectTransferOption(${planIdx}, false); startTracking();" class="w-full ${isAllLive ? 'bg-[#00ABE4] hover:bg-[#0091C2] shadow-[#00ABE4]/20' : (isLeg1Live ? 'bg-violet-600 hover:bg-violet-700 shadow-violet-600/20' : 'bg-slate-800 hover:bg-slate-900')} active:scale-[0.98] text-white font-bold text-xs py-2 px-3.5 rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all">
+            <button class="track-btn select-btn w-full ${isAllLive ? 'bg-[#00ABE4] hover:bg-[#0091C2] shadow-[#00ABE4]/20' : (isLeg1Live ? 'bg-violet-600 hover:bg-violet-700 shadow-violet-600/20' : 'bg-slate-800 hover:bg-slate-900')} active:scale-[0.98] text-white font-bold text-xs py-2 px-3.5 rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all">
               <i data-lucide="${isLeg1Live ? 'bus' : 'git-merge'}" class="w-3.5 h-3.5"></i>
               <span>${isLeg1Live ? 'Track this bus & route' : 'Track Scheduled Route'}</span>
             </button>
@@ -1901,14 +1913,27 @@ function updateAvailableBusesList() {
         </div>
       `;
 
+      const trackBtn = card.querySelector('.track-btn');
+      if (trackBtn) {
+        trackBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (isCurrentlyTracked) {
+            cancelTracking();
+          } else {
+            selectTransferOption(planIdx, false);
+            startTracking();
+          }
+        });
+      }
+
       allCards.push({ priority: isLeg1Live ? 1 : 4, etaSec: etaSec, elem: card });
     });
   }
 
   if (lastSearchResult.direct && lastSearchResult.direct.length > 0) {
     const effectiveStops = (currentTripPlanType === "DIRECT" && currentStopsList.length > 0) ? currentStopsList : lastSearchResult.direct[0].stops;
-    let userPickupIdx = selectedPickupStop ? findStopIndexInList(effectiveStops, selectedPickupStop) : -1;
-    let userDestIdx = selectedDestStop ? findStopIndexInList(effectiveStops, selectedDestStop) : -1;
+    const userPickupIdx = selectedPickupStop ? findStopIndexInList(effectiveStops, selectedPickupStop) : -1;
+    const userDestIdx = selectedDestStop ? findStopIndexInList(effectiveStops, selectedDestStop) : -1;
 
     const allowedRouteKeys = lastSearchResult.direct.map(r => normalizeStr(r.routeKey));
     const viableBuses = [];
@@ -2027,18 +2052,31 @@ function updateAvailableBusesList() {
 
           <div class="mt-2 sm:mt-2.5">
             ${isCurrentlyTracked ? `
-              <button onclick="event.stopPropagation(); cancelTracking();" class="w-full bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white font-bold text-xs py-2 px-3.5 rounded-xl shadow-md shadow-rose-600/20 flex items-center justify-center gap-1.5 transition-all">
+              <button class="track-btn cancel-btn w-full bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white font-bold text-xs py-2 px-3.5 rounded-xl shadow-md shadow-rose-600/20 flex items-center justify-center gap-1.5 transition-all">
                 <i data-lucide="x" class="w-3.5 h-3.5"></i>
                 <span>Cancel Tracking</span>
               </button>
             ` : `
-              <button onclick="event.stopPropagation(); selectBus('${item.plate}'); startTracking();" class="w-full bg-[#00ABE4] hover:bg-[#0091C2] active:scale-[0.98] text-white font-bold text-xs py-2 px-3.5 rounded-xl shadow-md shadow-[#00ABE4]/20 flex items-center justify-center gap-1.5 transition-all">
+              <button class="track-btn select-btn w-full bg-[#00ABE4] hover:bg-[#0091C2] active:scale-[0.98] text-white font-bold text-xs py-2 px-3.5 rounded-xl shadow-md shadow-[#00ABE4]/20 flex items-center justify-center gap-1.5 transition-all">
                 <i data-lucide="bus" class="w-3.5 h-3.5"></i>
                 <span>Track this bus</span>
               </button>
             `}
           </div>
         `;
+
+        const trackBtn = card.querySelector('.track-btn');
+        if (trackBtn) {
+          trackBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (isCurrentlyTracked) {
+              cancelTracking();
+            } else {
+              selectBus(item.plate);
+              startTracking();
+            }
+          });
+        }
 
         allCards.push({ priority: 0, etaSec: item.etaSec, elem: card });
       });
@@ -2100,18 +2138,31 @@ function updateAvailableBusesList() {
 
           <div class="mt-2 sm:mt-2.5">
             ${isCurrentlyTracked ? `
-              <button onclick="event.stopPropagation(); cancelTracking();" class="w-full bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white font-bold text-xs py-2 px-3.5 rounded-xl shadow-md shadow-rose-600/20 flex items-center justify-center gap-1.5 transition-all">
+              <button class="track-btn cancel-btn w-full bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white font-bold text-xs py-2 px-3.5 rounded-xl shadow-md shadow-rose-600/20 flex items-center justify-center gap-1.5 transition-all">
                 <i data-lucide="x" class="w-3.5 h-3.5"></i>
                 <span>Cancel Tracking</span>
               </button>
             ` : `
-              <button onclick="event.stopPropagation(); selectDirectOption(${rIdx}, false); startTracking();" class="w-full bg-slate-800 hover:bg-slate-900 active:scale-[0.98] text-white font-bold text-xs py-2 px-3.5 rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all">
+              <button class="track-btn select-btn w-full bg-slate-800 hover:bg-slate-900 active:scale-[0.98] text-white font-bold text-xs py-2 px-3.5 rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all">
                 <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
                 <span>Track Scheduled Route</span>
               </button>
             `}
           </div>
         `;
+
+        const trackBtn = card.querySelector('.track-btn');
+        if (trackBtn) {
+          trackBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (isCurrentlyTracked) {
+              cancelTracking();
+            } else {
+              selectDirectOption(rIdx, false);
+              startTracking();
+            }
+          });
+        }
 
         allCards.push({ priority: 3, etaSec: Infinity, elem: card });
       });
@@ -2336,7 +2387,7 @@ function recenterMap() {
 updateAvailableBusesList();
 
 const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt', {
-  clientId: 'WebClient_' + Math.random().toString(16).substr(2, 8),
+  clientId: 'WebClient_' + Math.random().toString(16).slice(2, 10),
   keepalive: 60,
   clean: true,
   reconnectPeriod: 3000
@@ -2356,7 +2407,7 @@ client.on('message', (topic, message) => {
     if (!rawPayload) return;
 
     const d = JSON.parse(rawPayload);
-    if (!d || !d.lat || !d.lng || !window.ROUTES_DATABASE) return;
+    if (!d || d.lat === undefined || d.lng === undefined || !window.ROUTES_DATABASE) return;
 
     const busPlate = d.bus_no || "WB42U2676";
     const rawRouteName = d.route || "77A_NOBATA";
@@ -2450,6 +2501,7 @@ client.on('message', (topic, message) => {
   }
 });
 
+// Periodic Stale Bus Purge (90s)
 setInterval(() => {
   const now = Date.now();
   let stateChanged = false;
@@ -2468,6 +2520,7 @@ setInterval(() => {
       delete activeBuses[plate];
       if (selectedBusPlate === plate) {
         selectedBusPlate = null;
+        clearRenderedPolylines();
       }
     }
   }

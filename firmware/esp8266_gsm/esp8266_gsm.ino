@@ -13,19 +13,20 @@ const char* APN               = "bsnlnet";
 const char* GPRS_USER         = "";
 const char* GPRS_PASS         = "";
 
+// Broker aligned with Web application (EMQX public cluster)
 const char* MQTT_BROKER       = "broker.emqx.io";
 const int   MQTT_PORT         = 1883;
 const char* MQTT_TOPIC        = "citytransit/fleet/77a_nobata/wb42u2676/data";
 
-const char* TRIP_DIRECTION    = ""; 
+const char* TRIP_DIRECTION    = ""; // Leave empty for auto-detection or set "UP" / "DOWN"
 
-const unsigned long MOVING_INTERVAL_MS     = 3000;   // 3s while moving
-const unsigned long STATIONARY_INTERVAL_MS = 10000;  // 10s when stationary
-const unsigned long RECONNECT_INTERVAL_MS  = 10000;  // Increased to 10s to stop retry spam
+const unsigned long MOVING_INTERVAL_MS     = 3000;   // 3s while in transit
+const unsigned long STATIONARY_INTERVAL_MS = 10000;  // 10s when halted
+const unsigned long RECONNECT_INTERVAL_MS  = 10000;  // Backoff limit for reconnects
 // ============================================================
 
-SoftwareSerial gsmSerial(4, 5);  // RX, TX for SIM800L
-SoftwareSerial gpsSerial(14, 12); // RX, TX for GPS
+SoftwareSerial gsmSerial(4, 5);   // D2 (RX), D1 (TX) -> SIM800L
+SoftwareSerial gpsSerial(14, 12); // D5 (RX), D6 (TX) -> NEO-6M GPS
 
 TinyGsm modem(gsmSerial);
 TinyGsmClient gsmClient(modem);
@@ -48,9 +49,9 @@ void setup() {
   gsmSerial.begin(9600);
   gpsSerial.begin(9600);
 
-  Serial.println(F("\n--- Starting Fleet Tracker (Resilient Network Architecture) ---"));
+  Serial.println(F("\n--- Fleet Telemetry Node Booting ---"));
 
-  // Hardware Reset SIM800L
+  // Hardware Pulse Reset SIM800L
   digitalWrite(GSM_RESET_PIN, LOW);
   delay(1000);
   digitalWrite(GSM_RESET_PIN, HIGH);
@@ -66,7 +67,7 @@ void setup() {
 }
 
 void loop() {
-  // 1. MAINTAIN NETWORK FIRST (Ears locked to GSM)
+  // 1. Maintain Cellular / MQTT link
   gsmSerial.listen();
 
   if (!mqttClient.connected()) {
@@ -76,100 +77,70 @@ void loop() {
       maintainConnection();
     }
   } else {
-    mqttClient.loop(); // Process server ACKs so connection NEVER drops
+    mqttClient.loop();
   }
 
+  // 2. Continuous non-blocking GPS feed read
+  gpsSerial.listen();
+  unsigned long startFeed = millis();
+  while (millis() - startFeed < 250) {
+    while (gpsSerial.available() > 0) {
+      gps.encode(gpsSerial.read());
+    }
+    yield();
+  }
+
+  // 3. Cadenced Transmission
   unsigned long activeInterval = (lastKnownSpeed >= 3.0) ? MOVING_INTERVAL_MS : STATIONARY_INTERVAL_MS;
   unsigned long now = millis();
   
   if (now - lastSendTime >= activeInterval) {
     lastSendTime = now;
-
-    // 2. SMART GPS FETCH
-    gpsSerial.listen(); 
-    
-    unsigned long startGps = millis();
-    bool gotFreshData = false;
-    
-    while (millis() - startGps < 1500) { 
-      while (gpsSerial.available() > 0) {
-        if (gps.encode(gpsSerial.read())) {
-          if (gps.location.isUpdated()) {
-            gotFreshData = true; 
-          }
-        }
-      }
-      if (gotFreshData) break; 
-      yield(); 
-    }
-
-    // 3. INSTANTLY SWITCH BACK TO MODEM
     gsmSerial.listen();
 
-    // 4. PUBLISH
     if (mqttClient.connected()) {
       publishTelemetry();
     }
   }
 }
 
-// ---------------------------------------------------------
-// REWRITTEN RECONNECTION ENGINE
-// ---------------------------------------------------------
 void maintainConnection() {
-  // Step A: Check Cellular Network Signal
   if (!modem.isNetworkConnected()) {
-    Serial.println(F("Cellular signal lost. Searching for tower..."));
-    Serial.flush();
-    // Give it 15 FULL SECONDS to find a tower, instead of 3.
+    Serial.println(F("Searching for mobile cell tower..."));
     if (!modem.waitForNetwork(15000L)) { 
-      Serial.println(F("Network failed. Will retry later."));
-      Serial.flush();
+      Serial.println(F("Cellular acquisition timeout."));
       return; 
     }
-    Serial.println(F("Cellular network found!"));
-    Serial.flush();
+    Serial.println(F("Cellular registration OK."));
   }
 
-  // Step B: Check GPRS Data Attachment
   if (!modem.isGprsConnected()) {
-    Serial.println(F("GPRS link dropped. Attaching APN..."));
-    Serial.flush();
+    Serial.println(F("Attaching GPRS PDP context..."));
     if (!modem.gprsConnect(APN, GPRS_USER, GPRS_PASS)) {
-      Serial.println(F("GPRS attach failed."));
-      Serial.flush();
-      return;
+      Serial.println(F("GPRS attachment failed."));
+      return; 
     }
-    Serial.println(F("GPRS attached successfully!"));
-    Serial.flush();
+    Serial.println(F("GPRS context attached."));
   }
 
-  // Step C: Connect to EMQX Server
   if (!mqttClient.connected()) {
-    Serial.println(F("Connecting to EMQX Broker..."));
-    Serial.flush();
+    Serial.println(F("Connecting to MQTT Broker..."));
     
-    char clientId[32];
-    snprintf(clientId, sizeof(clientId), "BusFleet-%s-%04d", BUS_PLATE, random(1000, 9999));
+    char clientId[36];
+    snprintf(clientId, sizeof(clientId), "FleetNode-%s-%04X", BUS_PLATE, (uint16_t)random(0xFFFF));
     
     if (mqttClient.connect(clientId)) {
-      Serial.println(F("MQTT RECONNECTED STABLE!"));
-      Serial.flush();
+      Serial.println(F("MQTT connection established."));
     } else {
       Serial.print(F("MQTT connection failed, rc="));
       Serial.println(mqttClient.state());
-      Serial.flush();
     }
   }
 }
 
-// ---------------------------------------------------------
-// TELEMETRY PUBLISHER
-// ---------------------------------------------------------
 void publishTelemetry() {
   if (!gps.location.isValid() || gps.location.lat() == 0.0 || gps.satellites.value() < 3) {
-    Serial.println(F("Skipping publish: Waiting for better GPS lock..."));
-    Serial.flush(); 
+    Serial.println(F("GPS lock not ready or insufficient satellites. Skipping."));
     return;
   }
 
@@ -178,11 +149,10 @@ void publishTelemetry() {
   double alt = gps.altitude.isValid() ? gps.altitude.meters() : 0.0;
   int sats   = gps.satellites.value();
   double hdop = gps.hdop.isValid() ? gps.hdop.hdop() : 1.5;
-  lastKnownSpeed = gps.speed.isValid() ? gps.speed.kmph() : 0.0;
+  lastKnownSpeed = gps.speed.isValid() ? (float)gps.speed.kmph() : 0.0;
 
-  // SANITY GUARD: Prevents the "Date-as-Heading" fragmentation bug
   if (lastKnownSpeed >= 3.0 && gps.course.isValid()) {
-    float currentHeading = gps.course.deg();
+    float currentHeading = (float)gps.course.deg();
     if (currentHeading >= 0.0 && currentHeading <= 360.0) {
       lastKnownHeading = currentHeading;
     }
@@ -204,12 +174,9 @@ void publishTelemetry() {
   boolean success = mqttClient.publish(MQTT_TOPIC, payload);
 
   if (success) {
-    delay(10); 
     Serial.print(F("Published -> "));
     Serial.println(payload);
-    Serial.flush();
   } else {
-    Serial.println(F("Publish FAILED (TCP Buffer Busy)"));
-    Serial.flush();
+    Serial.println(F("Publish FAILED (TCP window full)"));
   }
 }

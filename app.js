@@ -328,7 +328,10 @@ function calculateTripSummary(pickupStop, destStop, stopsList, effectiveSpeedKmp
   let intermediateStops = 0;
 
   for (let i = pIdx + 1; i <= dIdx; i++) {
-    totalMeters += getDistanceMeters(stopsList[i - 1].lat, stopsList[i - 1].lng, stopsList[i].lat, stopsList[i].lng) * 1.18;
+    const prev = stopsList[i - 1];
+    const curr = stopsList[i];
+    const segmentDist = getDistanceMeters(prev.lat, prev.lng, curr.lat, curr.lng);
+    totalMeters += segmentDist * 1.18;
     intermediateStops++;
   }
 
@@ -2382,11 +2385,11 @@ function recenterMap() {
 }
 
 // ==========================================
-// 9. MQTT WEBSOCKET INGESTION
+// 9. MQTT WEBSOCKET INGESTION (ALIGNED TO EMQX)
 // ==========================================
 updateAvailableBusesList();
 
-const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt', {
+const client = mqtt.connect('wss://broker.emqx.io:8084/mqtt', {
   clientId: 'WebClient_' + Math.random().toString(16).slice(2, 10),
   keepalive: 60,
   clean: true,
@@ -2394,7 +2397,7 @@ const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt', {
 });
 
 client.on('connect', () => {
-  console.log('Connected to HiveMQ Unified Fleet Hub');
+  console.log('Connected to EMQX Unified Fleet Hub');
   updateTripStatusBadge();
   client.subscribe('citytransit/fleet/#', (err) => {
     if (err) console.error('Subscription error:', err);

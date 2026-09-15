@@ -103,21 +103,19 @@ window.addEventListener('resize', () => {
 });
 
 // ==========================================
-// 2. LEAFLET MAP SETUP (HIGH SPEED CARTO CDN TILES)
+// 2. LEAFLET MAP SETUP (ESRI WORLD STREET MAP - NO API KEY / NO WATERMARK)
 // ==========================================
 const map = L.map('map', { center: [22.5000, 88.2500], zoom: 12, zoomControl: false });
 
-// Fast, non-blocking CartoDB Voyager tiles (Replaces rate-limited OSM tiles)
-L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-  maxZoom: 20,
-  subdomains: 'abcd',
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+  maxZoom: 19,
+  attribution: 'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, METI, TomTom'
 }).addTo(map);
 
 map.on('click', () => closeBottomSheet());
 map.on('dragstart', () => closeBottomSheet());
 
-// Temporarily disable 3s CSS transition during map drag/zoom to avoid visual drift
+// Temporarily disable marker transition during map pan/drag to avoid visual lag
 map.on('movestart', () => {
   document.querySelectorAll('.bus-marker-wrapper').forEach(el => {
     el.style.transition = 'none';
@@ -162,7 +160,7 @@ function createDynamicBusMapIcon(routeString, busPlate, heading = 0, destTermina
           </div>
 
           <div class="relative z-10 w-8 h-8 bg-slate-900 text-white rounded-full border-2 border-white shadow-xl flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-[#00ABE4]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-[#00ABE4]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><circle cx="15" cy="18" r="2"/></svg>
           </div>
         </div>
 
@@ -361,7 +359,7 @@ function checkLegLiveAvailability(routeKey, direction, maxStopIdx, stops) {
 }
 
 // ==========================================
-// 4-TIER DIRECTION ENGINE
+// 4-TIER DIRECTION DETECTION
 // ==========================================
 function updateBusDirectionFromMovement(busPlate, newLat, newLng, newHeading, newSpeedKmph, payloadDir, routeConfig) {
   // Tier 1: Explicit Payload Override
@@ -1043,7 +1041,7 @@ function closeLinesModal() {
 }
 
 // ==========================================
-// 5. ROUTING ENGINE
+// 5. UNIFIED NO-BACKTRACK TRANSIT DISCOVERY ENGINE
 // ==========================================
 function findMatchingRoutes(pName, dName) {
   let pNorm = normalizeStr(pName);

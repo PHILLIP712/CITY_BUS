@@ -53,20 +53,25 @@ function getDistanceMeters(lat1, lon1, lat2, lon2) {
   return EARTH_RADIUS * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
-// Fuzzy stop matcher that tolerates name variations
+// Hierarchical stop matcher: Exact Name -> Name Substring -> Area Fallback
 function findStopIndexInList(stops, targetStop) {
   if (!stops || !targetStop) return -1;
   const targetNorm = normalizeStr(typeof targetStop === 'string' ? targetStop : targetStop.name);
   if (!targetNorm) return -1;
 
+  // Tier 1: Exact Name Match
   let idx = stops.findIndex(s => normalizeStr(s.name) === targetNorm);
   if (idx !== -1) return idx;
 
+  // Tier 2: Substring Name Match
   idx = stops.findIndex(s => {
     const sNorm = normalizeStr(s.name);
-    return sNorm.includes(targetNorm) || targetNorm.includes(sNorm) || (s.area && normalizeStr(s.area).includes(targetNorm));
+    return sNorm.includes(targetNorm) || targetNorm.includes(sNorm);
   });
-  return idx;
+  if (idx !== -1) return idx;
+
+  // Tier 3: Area Fallback
+  return stops.findIndex(s => s.area && normalizeStr(s.area).includes(targetNorm));
 }
 
 function findBusNearestStopIndex(busLat, busLng, stops) {
@@ -277,6 +282,7 @@ function setTimelineHTML(rowsHtmlArray) {
   if (container) container.innerHTML = rowsHtmlArray.join("");
 }
 
+// STABILIZED ETA CALCULATOR WITH MINIMUM VELOCITY CLAMP
 function calculateEtaSeconds(busLat, busLng, busSpeedKmph, targetStopIdx, stops) {
   if (!stops || targetStopIdx < 0 || targetStopIdx >= stops.length) return Infinity;
 
@@ -284,7 +290,8 @@ function calculateEtaSeconds(busLat, busLng, busSpeedKmph, targetStopIdx, stops)
   if (busIdx > targetStopIdx) return Infinity;
 
   const DWELL_SEC = 20;
-  const effectiveSpeed = (busSpeedKmph >= 3.0) ? busSpeedKmph : 20.0;
+  // Velocity Clamp: Prevents slow signals or crawling from generating 3+ hour predictions
+  const effectiveSpeed = (busSpeedKmph >= 12.0) ? busSpeedKmph : 20.0;
   const speedMps = (effectiveSpeed * 1000) / 3600;
 
   if (busIdx === targetStopIdx) {
@@ -1064,6 +1071,18 @@ function findMatchingRoutes(pName, dName) {
 
   const allRouteKeys = Object.keys(window.ROUTES_DATABASE);
 
+  // Helper: Match stop prioritizing exact name
+  const findStopByStrictPriority = (stops, targetNorm) => {
+    let idx = stops.findIndex(s => normalizeStr(s.name) === targetNorm);
+    if (idx !== -1) return idx;
+    idx = stops.findIndex(s => {
+      const n = normalizeStr(s.name);
+      return n.includes(targetNorm) || targetNorm.includes(n);
+    });
+    if (idx !== -1) return idx;
+    return stops.findIndex(s => s.area && normalizeStr(s.area) === targetNorm);
+  };
+
   // 1. Direct Routes Discovery
   for (const rKey of allRouteKeys) {
     const rObj = window.ROUTES_DATABASE[rKey];
@@ -1071,28 +1090,16 @@ function findMatchingRoutes(pName, dName) {
     
     // UP Direction
     const fStops = rObj.forwardStops || [];
-    const pUp = fStops.findIndex(s => {
-      const n = normalizeStr(s.name);
-      return n.includes(pNorm) || pNorm.includes(n) || (s.area && normalizeStr(s.area).includes(pNorm));
-    });
-    const dUp = fStops.findIndex(s => {
-      const n = normalizeStr(s.name);
-      return n.includes(dNorm) || dNorm.includes(n) || (s.area && normalizeStr(s.area).includes(dNorm));
-    });
+    const pUp = findStopByStrictPriority(fStops, pNorm);
+    const dUp = findStopByStrictPriority(fStops, dNorm);
     if (pUp !== -1 && dUp !== -1 && pUp < dUp) {
       directMatches.push({ type: 'DIRECT', routeKey: rKey, direction: "UP", stops: fStops, pIdx: pUp, dIdx: dUp });
     }
 
     // DOWN Direction
     const rStops = rObj.returnStops || [];
-    const pDown = rStops.findIndex(s => {
-      const n = normalizeStr(s.name);
-      return n.includes(pNorm) || pNorm.includes(n) || (s.area && normalizeStr(s.area).includes(pNorm));
-    });
-    const dDown = rStops.findIndex(s => {
-      const n = normalizeStr(s.name);
-      return n.includes(dNorm) || dNorm.includes(n) || (s.area && normalizeStr(s.area).includes(dNorm));
-    });
+    const pDown = findStopByStrictPriority(rStops, pNorm);
+    const dDown = findStopByStrictPriority(rStops, dNorm);
     if (pDown !== -1 && dDown !== -1 && pDown < dDown) {
       directMatches.push({ type: 'DIRECT', routeKey: rKey, direction: "DOWN", stops: rStops, pIdx: pDown, dIdx: dDown });
     }
@@ -1108,10 +1115,7 @@ function findMatchingRoutes(pName, dName) {
     ];
 
     for (const leg1 of directions1) {
-      const pIdx = leg1.stops.findIndex(s => {
-        const n = normalizeStr(s.name);
-        return n.includes(pNorm) || pNorm.includes(n) || (s.area && normalizeStr(s.area).includes(pNorm));
-      });
+      const pIdx = findStopByStrictPriority(leg1.stops, pNorm);
       if (pIdx === -1) continue;
 
       const pStop = leg1.stops[pIdx];
@@ -1130,10 +1134,7 @@ function findMatchingRoutes(pName, dName) {
         ];
 
         for (const leg2 of directions2) {
-          const d2Idx = leg2.stops.findIndex(s => {
-            const n = normalizeStr(s.name);
-            return n.includes(dNorm) || dNorm.includes(n) || (s.area && normalizeStr(s.area).includes(dNorm));
-          });
+          const d2Idx = findStopByStrictPriority(leg2.stops, dNorm);
           if (d2Idx === -1) continue;
 
           const dStop = leg2.stops[d2Idx];
@@ -1150,22 +1151,32 @@ function findMatchingRoutes(pName, dName) {
           }
 
           for (let tIdx = pIdx + 1; tIdx < leg1.stops.length; tIdx++) {
-            const transferStop = leg1.stops[tIdx];
-            const tNorm = normalizeStr(transferStop.name);
+            const transferStop1 = leg1.stops[tIdx];
+            const tNorm = normalizeStr(transferStop1.name);
 
-            // ANTI-BACKTRACK GUARD:
-            // Ensure interchange point actually makes progress towards final destination.
-            const distTransferToDest = getDistanceMeters(transferStop.lat, transferStop.lng, dStop.lat, dStop.lng);
-            if (distTransferToDest >= distPickupToDest * 0.88) {
-              continue;
+            // Find matching interchange stop on Leg 2 by exact name first
+            let t2Idx = leg2.stops.findIndex(s => normalizeStr(s.name) === tNorm);
+            if (t2Idx === -1) {
+              t2Idx = leg2.stops.findIndex(s => {
+                const n = normalizeStr(s.name);
+                return n.includes(tNorm) || tNorm.includes(n);
+              });
             }
 
-            const t2Idx = leg2.stops.findIndex(s => {
-              const n = normalizeStr(s.name);
-              return n.includes(tNorm) || tNorm.includes(n) || (s.area && normalizeStr(s.area).includes(tNorm));
-            });
-
             if (t2Idx !== -1 && t2Idx < d2Idx) {
+              const transferStop2 = leg2.stops[t2Idx];
+
+              // PHYSICAL INTERCHANGE PROXIMITY GUARD:
+              // Both interchange stops MUST be within 400m of each other.
+              // Prevents false-matches like "Santoshpur Railway Station" vs "Santoshpur (Maheshtala)"
+              const physicalInterchangeDistance = getDistanceMeters(
+                transferStop1.lat, transferStop1.lng,
+                transferStop2.lat, transferStop2.lng
+              );
+              if (physicalInterchangeDistance > 400) {
+                continue;
+              }
+
               let routeDistLeg2 = 0;
               for (let j = t2Idx + 1; j <= d2Idx; j++) {
                 routeDistLeg2 += getDistanceMeters(leg2.stops[j - 1].lat, leg2.stops[j - 1].lng, leg2.stops[j].lat, leg2.stops[j].lng) * 1.18;
@@ -1173,11 +1184,14 @@ function findMatchingRoutes(pName, dName) {
 
               const routeDistLeg1 = leg1DistMap[tIdx];
               const totalActualRouteDist = routeDistLeg1 + routeDistLeg2;
-              const isSensibleDetour = totalActualRouteDist <= Math.max(distPickupToDest * 1.8, 12000);
+
+              // SENSIBLE NETWORK DETOUR CHECK:
+              // Accommodates radial hub-and-spoke journeys via Taratala (e.g., Shyampur More -> Taratala -> Dostipur)
+              const isSensibleDetour = totalActualRouteDist <= Math.max(distPickupToDest * 2.8, 28000);
 
               if (isSensibleDetour) {
                 commonStops.push({
-                  transferStopName: transferStop.name,
+                  transferStopName: transferStop1.name,
                   tIdx: tIdx,
                   t2Idx: t2Idx,
                   totalDist: totalActualRouteDist,
@@ -1280,12 +1294,12 @@ function handleSearchClick() {
     switchMobileTab('buses');
   }
 
-  // Check if any direct corridor currently has an oncoming live bus
+  // 1. Check if any direct corridor currently has an oncoming live bus
   const hasLiveDirect = hasDirect && lastSearchResult.direct.some(r => {
     return checkLegLiveAvailability(r.routeKey, r.direction, r.pIdx, r.stops);
   });
 
-  // Check if a transfer route has an active oncoming bus on Leg 1
+  // 2. Check if a transfer route has an active oncoming bus on Leg 1
   const hasLiveTransfer = hasTransfers && lastSearchResult.transfers.some(t => t.hasLiveLeg1);
 
   // Hierarchy: Live Direct > Live Transfer Leg 1 > Scheduled Direct > Scheduled Transfer
@@ -2141,9 +2155,9 @@ function updateAvailableBusesList() {
           </div>
 
           <div class="text-xs font-bold text-slate-800 truncate mt-1">
-            ${selectedPickupStop ? selectedPickupStop.name : 'Origin'} 
+            ${plan.leg1.pickupStop.name} 
             <span class="text-slate-400 font-normal">➔</span> 
-            ${selectedDestStop ? selectedDestStop.name : 'Destination'}
+            ${plan.leg2.destStop.name}
           </div>
           <div class="text-[10px] ${isLeg1Live ? 'text-amber-800' : 'text-slate-500'} font-semibold mt-0.5 flex items-center gap-1 truncate">
             <span>🔄 Change:</span>

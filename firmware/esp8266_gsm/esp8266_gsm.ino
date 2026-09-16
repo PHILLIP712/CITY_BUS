@@ -8,7 +8,7 @@
 // HARDWARE & VEHICLE CONFIGURATION
 // ============================================================
 const char* ROUTE_ID          = "77A_NOBATA";
-const char* BUS_PLATE         = "WB42U2676";
+const char* BUS_PLATE         = "WB19M3264";
 const char* APN               = "bsnlnet";
 const char* GPRS_USER         = "";
 const char* GPRS_PASS         = "";

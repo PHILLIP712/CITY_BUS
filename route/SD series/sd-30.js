@@ -2,7 +2,7 @@
 const STOPS_SD30_FORWARD = [
   { id: 1, name: "Sahararhat More", area: "Budge Budge / Maheshtala", lat: 22.300889, lng: 88.140556 },
   { id: 2, name: "Mallickpur Bazar", area: "Budge Budge / Maheshtala", lat: 22.329917, lng: 88.124889 },
-  { id: 3, name: "Bisalakshmitala", area: "Budge Budge / Maheshtala", lat: 22.360056, lng: 88.135667 },
+  { id: 3, name: "Bishalakshmitala", area: "Budge Budge / Maheshtala", lat: 22.360056, lng: 88.135667 },
   { id: 4, name: "Dongaria", area: "Budge Budge / Maheshtala", lat: 22.401222, lng: 88.156000 },
   { id: 5, name: "Calcium More", area: "Birlapur", lat: 22.430361, lng: 88.158722 },
   { id: 6, name: "Chandipur", area: "Birlapur / Budge Budge", lat: 22.433778, lng: 88.166444 },

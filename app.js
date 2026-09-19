@@ -2449,7 +2449,7 @@ client.on('message', (topic, message) => {
     const d = JSON.parse(rawPayload);
     if (!d || d.lat === undefined || d.lng === undefined || !window.ROUTES_DATABASE) return;
 
-    const busPlate = d.bus_no || "WB42U2676";
+    const busPlate = d.bus_no || "WB19M3264";
     const rawRouteName = d.route || "77A_NOBATA";
     const busLat = parseFloat(d.lat);
     const busLng = parseFloat(d.lng);

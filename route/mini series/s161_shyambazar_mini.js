@@ -1,0 +1,73 @@
+// ROUTE ID: S161
+const STOPS_S161_FORWARD = [
+  { id: 1, name: "Shyambazar 5 Point Crossing", area: "Shyambazar Five Point", lat: 22.601806, lng: 88.373722 },
+  { id: 2, name: "Shyambazar Metro", area: "Shyambazar Metro", lat: 22.600694, lng: 88.370306 },
+  { id: 3, name: "Jagat Mukherjee Park Crossing", area: "Sovabazar / Shyambazar", lat: 22.599667, lng: 88.366611 },
+  { id: 4, name: "Sovabazar", area: "Sovabazar", lat: 22.595778, lng: 88.365222 },
+  { id: 5, name: "C.R. Avenue - Beadon Street", area: "Girish Park / Beadon Street", lat: 22.589778, lng: 88.363778 },
+  { id: 6, name: "Girish Park", area: "Girish Park", lat: 22.586250, lng: 88.362833 },
+  { id: 7, name: "Jorasanko Thakurbari", area: "Jorasanko", lat: 22.584250, lng: 88.362306 },
+  { id: 8, name: "M.G. Road Metro", area: "M.G. Road Metro", lat: 22.581111, lng: 88.361556 },
+  { id: 9, name: "M.G. Road Crossing", area: "M.G. Road / C.R. Avenue", lat: 22.578694, lng: 88.360806 },
+  { id: 10, name: "Md. Ali Park", area: "College Street / Md. Ali Park", lat: 22.577139, lng: 88.360389 },
+  { id: 11, name: "Calcutta Medical College (C.R. Avenue)", area: "College Street / Medical College", lat: 22.573694, lng: 88.359306 },
+  { id: 12, name: "Central Metro Station", area: "Central Metro", lat: 22.572444, lng: 88.358861 },
+  { id: 13, name: "C.R. Avenue - B.B. Ganguly Street Crossing", area: "Bowbazar / Central", lat: 22.570472, lng: 88.358194 },
+  { id: 14, name: "Lalbazar Crossing", area: "Lalbazar / BBD Bagh", lat: 22.572083, lng: 88.353083 },
+  { id: 15, name: "BBD Bagh (Metro / Dalhousie)", area: "BBD Bagh Metro", lat: 22.572583, lng: 88.350861 },
+  { id: 16, name: "Dalhousie (BBD Bagh Central)", area: "Dalhousie / BBD Bagh", lat: 22.570444, lng: 88.350028 },
+  { id: 17, name: "Esplanade Raj Bhavan", area: "Esplanade / Raj Bhavan", lat: 22.566278, lng: 88.348556 },
+  { id: 18, name: "Esplanade Mayo Road", area: "Esplanade", lat: 22.560056, lng: 88.348389 },
+  { id: 19, name: "Fort William", area: "Red Road / Maidan", lat: 22.555056, lng: 88.344278 },
+  { id: 20, name: "Hastings More", area: "Hastings", lat: 22.543694, lng: 88.329500 },
+  { id: 21, name: "Kidderpore Crossing", area: "Kidderpore", lat: 22.541444, lng: 88.326028 },
+  { id: 22, name: "Fancy Market", area: "Kidderpore", lat: 22.540056, lng: 88.324000 },
+  { id: 23, name: "Kidderpore Tram Depot", area: "Kidderpore", lat: 22.538611, lng: 88.317611 },
+  { id: 24, name: "Hide Road More", area: "Hide Road / Kidderpore", lat: 22.538000, lng: 88.309500 },
+  { id: 25, name: "ITC Limited", area: "Hide Road", lat: 22.538083, lng: 88.306667 },
+  { id: 26, name: "Indian Institute of Port Management", area: "Garden Reach / IIPM", lat: 22.538389, lng: 88.304028 },
+  { id: 27, name: "Dock Gate No. 9", area: "Garden Reach / Dock Gate 9", lat: 22.534806, lng: 88.301500 },
+  { id: 28, name: "Garden Reach Dock", area: "Garden Reach / Dock", lat: 22.536417, lng: 88.296222 },
+  { id: 29, name: "Ramnagar (Metiabruz)", area: "Metiabruz / Ramnagar", lat: 22.543417, lng: 88.294722 },
+  { id: 30, name: "Metiabruz Kacchi Sadak", area: "Metiabruz", lat: 22.548444, lng: 88.288000 },
+  { id: 31, name: "Bichalighat", area: "Metiabruz / Bichalighat", lat: 22.549194, lng: 88.285194 },
+  { id: 32, name: "Metiabruz Police Station", area: "Metiabruz", lat: 22.549528, lng: 88.282583 }
+];
+
+const STOPS_S161_RETURN = [
+  { id: 1, name: "Metiabruz Police Station", area: "Metiabruz", lat: 22.549583, lng: 88.282583 },
+  { id: 2, name: "Bichalighat", area: "Metiabruz / Bichalighat", lat: 22.549278, lng: 88.285250 },
+  { id: 3, name: "Metiabruz Kacchi Sadak", area: "Metiabruz", lat: 22.548667, lng: 88.287750 },
+  { id: 4, name: "Ramnagar (Metiabruz)", area: "Metiabruz / Ramnagar", lat: 22.543444, lng: 88.294806 },
+  { id: 5, name: "Garden Reach Dock", area: "Garden Reach / Dock", lat: 22.536611, lng: 88.296333 },
+  { id: 6, name: "Dock Gate No. 9", area: "Garden Reach / Dock Gate 9", lat: 22.534972, lng: 88.301639 },
+  { id: 7, name: "Indian Institute of Port Management", area: "Garden Reach / IIPM", lat: 22.538472, lng: 88.304083 },
+  { id: 8, name: "ITC Limited", area: "Hide Road", lat: 22.538333, lng: 88.306500 },
+  { id: 9, name: "Hide Road More", area: "Hide Road / Kidderpore", lat: 22.538000, lng: 88.309500 },
+  { id: 10, name: "Kidderpore Tram Depot", area: "Kidderpore", lat: 22.538611, lng: 88.317611 },
+  { id: 11, name: "Fancy Market", area: "Kidderpore", lat: 22.540056, lng: 88.324000 },
+  { id: 12, name: "Kidderpore Crossing", area: "Kidderpore", lat: 22.541444, lng: 88.326028 },
+  { id: 13, name: "Hastings More", area: "Hastings", lat: 22.543694, lng: 88.329500 },
+  { id: 14, name: "Princep Ghat", area: "Strand Road", lat: 22.555556, lng: 88.331722 },
+  { id: 15, name: "Babughat Bus Stand", area: "Babughat / Eden Gardens", lat: 22.563750, lng: 88.338389 },
+  { id: 16, name: "Esplanade Raj Bhavan", area: "Esplanade / Raj Bhavan", lat: 22.566194, lng: 88.348361 },
+  { id: 17, name: "Esplanade (K.C. Das)", area: "Esplanade", lat: 22.565389, lng: 88.351556 },
+  { id: 18, name: "Lalbazar Crossing", area: "Lalbazar / BBD Bagh", lat: 22.572139, lng: 88.353111 },
+  { id: 19, name: "Podder Court", area: "Bowbazar / Podder Court", lat: 22.573944, lng: 88.353694 },
+  { id: 20, name: "M.G. Road - Chitpur More Crossing", area: "Chitpur / M.G. Road", lat: 22.579750, lng: 88.356861 },
+  { id: 21, name: "Ganesh Talkies", area: "Burrabazar / Chitpur", lat: 22.586472, lng: 88.358278 },
+  { id: 22, name: "B.K. Paul Avenue Crossing", area: "Sovabazar / B.K. Paul Avenue", lat: 22.595694, lng: 88.361750 },
+  { id: 23, name: "Sovabazar", area: "Sovabazar", lat: 22.595917, lng: 88.365056 },
+  { id: 24, name: "Jagat Mukherjee Park Crossing", area: "Sovabazar / Shyambazar", lat: 22.599833, lng: 88.366583 },
+  { id: 25, name: "Shyambazar Metro", area: "Shyambazar Metro", lat: 22.600861, lng: 88.370333 },
+  { id: 26, name: "Shyambazar 5 Point Crossing", area: "Shyambazar Five Point", lat: 22.601861, lng: 88.373694 }
+];
+
+window.ROUTES_DATABASE = window.ROUTES_DATABASE || {};
+window.ROUTES_DATABASE["S161"] = {
+  id: "S161",
+  name: "S-161 (SHYAMBAZAR MINI)",
+  subTitle: "SHYAMBAZAR <-> METIABRUZ",
+  forwardStops: STOPS_S161_FORWARD,
+  returnStops: STOPS_S161_RETURN
+};

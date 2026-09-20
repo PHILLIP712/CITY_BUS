@@ -1,0 +1,73 @@
+// ROUTE ID: 42B
+const STOPS_42B_FORWARD = [
+  { id: 1, name: "Bichalighat", area: "Metiabruz / Bichalighat", lat: 22.549278, lng: 88.285250 },
+  { id: 2, name: "Metiabruz Kacchi Sadak", area: "Metiabruz", lat: 22.548667, lng: 88.287750 },
+  { id: 3, name: "Ramnagar (Metiabruz)", area: "Metiabruz / Ramnagar", lat: 22.543444, lng: 88.294806 },
+  { id: 4, name: "Asbestos More", area: "Taratala / Garden Reach", lat: 22.538556, lng: 88.293389 },
+  { id: 5, name: "Nature Park", area: "Santoshpur / Nature Park", lat: 22.523806, lng: 88.291083 },
+  { id: 6, name: "Jinjira Bazar", area: "Taratala / Hyde Road", lat: 22.517417, lng: 88.298083 },
+  { id: 7, name: "Brace Bridge", area: "Taratala / Railway", lat: 22.516556, lng: 88.303333 },
+  { id: 8, name: "Taratala State Garage", area: "Taratala", lat: 22.515861, lng: 88.306556 },
+  { id: 9, name: "Taratala More", area: "Diamond Harbour Road", lat: 22.512472, lng: 88.321861 },
+  { id: 10, name: "Taratala New Alipore Crossing", area: "Taratala / New Alipore", lat: 22.513194, lng: 88.322694 },
+  { id: 11, name: "Triangular Park (New Alipore)", area: "New Alipore", lat: 22.512250, lng: 88.329528 },
+  { id: 12, name: "New Alipore", area: "New Alipore", lat: 22.509306, lng: 88.332861 },
+  { id: 13, name: "Mahabirtala", area: "New Alipore / Mahabirtala", lat: 22.503583, lng: 88.340750 },
+  { id: 14, name: "Tollygunge Phari", area: "Tollygunge", lat: 22.503417, lng: 88.345028 },
+  { id: 15, name: "Rabindra Sarovar", area: "Rabindra Sarovar / Southern Avenue", lat: 22.507750, lng: 88.345417 },
+  { id: 16, name: "Mudiali", area: "Mudiali / Southern Avenue", lat: 22.511306, lng: 88.345750 },
+  { id: 17, name: "Tollygunge Police Station", area: "Tollygunge / Charu Market", lat: 22.515306, lng: 88.345889 },
+  { id: 18, name: "Rashbehari Crossing", area: "Rashbehari / Kalighat", lat: 22.517111, lng: 88.345972 },
+  { id: 19, name: "Lake Mall", area: "Rashbehari / Lake Mall", lat: 22.516972, lng: 88.349194 },
+  { id: 20, name: "Deshapriya Park Crossing", area: "Deshapriya Park", lat: 22.517472, lng: 88.352278 },
+  { id: 21, name: "Triangular Park", area: "Gariahat / Triangular Park", lat: 22.518500, lng: 88.358333 },
+  { id: 22, name: "Gariahat Crossing", area: "Gariahat", lat: 22.519694, lng: 88.365111 },
+  { id: 23, name: "Ballygunge Station", area: "Ballygunge / Railway Station", lat: 22.521250, lng: 88.369583 },
+  { id: 24, name: "Kasba Post Office", area: "Kasba", lat: 22.519694, lng: 88.376111 },
+  { id: 25, name: "Kasba Police Station", area: "Kasba", lat: 22.519722, lng: 88.383111 },
+  { id: 26, name: "Rajdanga Nabapally", area: "Kasba / Rajdanga", lat: 22.514889, lng: 88.390278 },
+  { id: 27, name: "Acropolis Mall", area: "Kasba / Acropolis Mall", lat: 22.514417, lng: 88.393417 },
+  { id: 28, name: "Ruby Hospital", area: "EM Bypass / Ruby", lat: 22.513500, lng: 88.401556 },
+  { id: 29, name: "Anandapur Bus Stand", area: "Anandapur", lat: 22.512556, lng: 88.408361 }
+];
+
+const STOPS_42B_RETURN = [
+  { id: 1, name: "Anandapur Bus Stand", area: "Anandapur", lat: 22.512500, lng: 88.408417 },
+  { id: 2, name: "Ruby Hospital", area: "EM Bypass / Ruby", lat: 22.513528, lng: 88.402000 },
+  { id: 3, name: "Acropolis Mall", area: "Kasba / Acropolis Mall", lat: 22.514250, lng: 88.393389 },
+  { id: 4, name: "Rajdanga Nabapally", area: "Kasba / Rajdanga", lat: 22.514694, lng: 88.390250 },
+  { id: 5, name: "Kasba Police Station", area: "Kasba", lat: 22.519472, lng: 88.383139 },
+  { id: 6, name: "Kasba Post Office", area: "Kasba", lat: 22.519556, lng: 88.376000 },
+  { id: 7, name: "Ballygunge Station", area: "Ballygunge / Railway Station", lat: 22.521111, lng: 88.369333 },
+  { id: 8, name: "Gariahat Crossing", area: "Gariahat", lat: 22.519500, lng: 88.365194 },
+  { id: 9, name: "Triangular Park", area: "Gariahat / Triangular Park", lat: 22.518389, lng: 88.358556 },
+  { id: 10, name: "Deshapriya Park Crossing", area: "Deshapriya Park", lat: 22.517417, lng: 88.352528 },
+  { id: 11, name: "Lake Mall", area: "Rashbehari / Lake Mall", lat: 22.516750, lng: 88.348750 },
+  { id: 12, name: "Rashbehari Crossing", area: "Rashbehari / Kalighat", lat: 22.517111, lng: 88.345750 },
+  { id: 13, name: "Tollygunge Police Station", area: "Tollygunge / Charu Market", lat: 22.515222, lng: 88.346194 },
+  { id: 14, name: "Mudiali", area: "Mudiali / Southern Avenue", lat: 22.511000, lng: 88.345972 },
+  { id: 15, name: "Rabindra Sarovar", area: "Rabindra Sarovar / Southern Avenue", lat: 22.507611, lng: 88.345639 },
+  { id: 16, name: "Tollygunge Phari", area: "Tollygunge", lat: 22.503333, lng: 88.345278 },
+  { id: 17, name: "Mahabirtala", area: "New Alipore / Mahabirtala", lat: 22.503528, lng: 88.340750 },
+  { id: 18, name: "New Alipore", area: "New Alipore", lat: 22.508889, lng: 88.333000 },
+  { id: 19, name: "Triangular Park (New Alipore)", area: "New Alipore", lat: 22.512222, lng: 88.329500 },
+  { id: 20, name: "Taratala New Alipore Crossing", area: "Taratala / New Alipore", lat: 22.513167, lng: 88.322611 },
+  { id: 21, name: "Taratala More", area: "Diamond Harbour Road", lat: 22.512472, lng: 88.321861 },
+  { id: 22, name: "Taratala State Garage", area: "Taratala", lat: 22.515861, lng: 88.306556 },
+  { id: 23, name: "Brace Bridge", area: "Taratala / Railway", lat: 22.516556, lng: 88.303333 },
+  { id: 24, name: "Jinjira Bazar", area: "Taratala / Hyde Road", lat: 22.517417, lng: 88.298083 },
+  { id: 25, name: "Nature Park", area: "Santoshpur / Nature Park", lat: 22.523750, lng: 88.291111 },
+  { id: 26, name: "Asbestos More", area: "Taratala / Garden Reach", lat: 22.538556, lng: 88.293306 },
+  { id: 27, name: "Ramnagar (Metiabruz)", area: "Metiabruz / Ramnagar", lat: 22.543417, lng: 88.294722 },
+  { id: 28, name: "Metiabruz Kacchi Sadak", area: "Metiabruz", lat: 22.548444, lng: 88.288000 },
+  { id: 29, name: "Bichalighat", area: "Metiabruz / Bichalighat", lat: 22.549194, lng: 88.285194 }
+];
+
+window.ROUTES_DATABASE = window.ROUTES_DATABASE || {};
+window.ROUTES_DATABASE["42B"] = {
+  id: "42B",
+  name: "42B",
+  subTitle: "BICHALI GHAT <-> ANANDAPUR",
+  forwardStops: STOPS_42B_FORWARD,
+  returnStops: STOPS_42B_RETURN
+};

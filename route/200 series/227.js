@@ -74,6 +74,6 @@ window.ROUTES_DATABASE["227"] = {
   id: "227",
   name: "227",
   subTitle: "B.N.R. HOSPITAL <-> BANGUR AVENUE",
-  forwardStOPS: STOPS_227_FORWARD,
+  forwardStops: STOPS_227_FORWARD,
   returnStops: STOPS_227_RETURN
 };

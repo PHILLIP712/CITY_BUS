@@ -1,0 +1,71 @@
+// ROUTE ID: 21
+const STOPS_21_FORWARD = [
+  { id: 1, name: "Behala Kadamtala", area: "Behala / Kadamtala", lat: 22.471083, lng: 88.309861 },
+  { id: 2, name: "Sakherbazar Metro", area: "Sakherbazar / Metro", lat: 22.475611, lng: 88.309889 },
+  { id: 3, name: "Behala Sakherbazar", area: "Sakherbazar / DH Road", lat: 22.481528, lng: 88.310611 },
+  { id: 4, name: "Sakher Bazar James Long Crossing", area: "Sakherbazar / James Long Sarani", lat: 22.481167, lng: 88.313472 },
+  { id: 5, name: "Sitala Mandir (Motilal Gupta Road)", area: "Motilal Gupta Road", lat: 22.480861, lng: 88.322111 },
+  { id: 6, name: "Sodepur (Behala)", area: "Sodepur / Motilal Gupta Road", lat: 22.482917, lng: 88.328972 },
+  { id: 7, name: "Muchipara (Behala)", area: "Behala / Motilal Gupta Road", lat: 22.487306, lng: 88.332250 },
+  { id: 8, name: "Siriti More (Behala)", area: "Siriti / Tollygunge", lat: 22.489500, lng: 88.338528 },
+  { id: 9, name: "South City Garden", area: "Siriti / South City Garden", lat: 22.495167, lng: 88.339556 },
+  { id: 10, name: "Bhati Khana (Mahabirtala)", area: "Tollygunge / Bhati Khana", lat: 22.500111, lng: 88.340111 },
+  { id: 11, name: "Mahabirtala", area: "New Alipore / Mahabirtala", lat: 22.503583, lng: 88.340750 },
+  { id: 12, name: "Tollygunge Phari", area: "Tollygunge", lat: 22.503417, lng: 88.345028 },
+  { id: 13, name: "Rabindra Sarovar", area: "Rabindra Sarovar / Southern Avenue", lat: 22.507750, lng: 88.345417 },
+  { id: 14, name: "Mudiali", area: "Mudiali / Southern Avenue", lat: 22.511306, lng: 88.345750 },
+  { id: 15, name: "Tollygunge Police Station", area: "Tollygunge / Charu Market", lat: 22.515306, lng: 88.345889 },
+  { id: 16, name: "Rashbehari Crossing", area: "Rashbehari / Kalighat", lat: 22.517111, lng: 88.345750 },
+  { id: 17, name: "Hazra More", area: "Hazra / Kalighat", lat: 22.523833, lng: 88.346417 },
+  { id: 18, name: "Bhowanipore", area: "Bhowanipore", lat: 22.533194, lng: 88.345889 },
+  { id: 19, name: "Exide More", area: "Rabindra Sadan / Exide", lat: 22.541806, lng: 88.347250 },
+  { id: 20, name: "Minto Park", area: "Park Street / Minto Park", lat: 22.541333, lng: 88.355056 },
+  { id: 21, name: "Beck Bagan", area: "Park Circus / Beck Bagan", lat: 22.541222, lng: 88.359000 },
+  { id: 22, name: "Mullick Bazar", area: "Mullick Bazar / Park Street", lat: 22.546694, lng: 88.361417 },
+  { id: 23, name: "Nonapukur Tram Depot", area: "Nonapukur / AJC Bose Road", lat: 22.550111, lng: 88.362694 },
+  { id: 24, name: "Entally Market", area: "Entally", lat: 22.558250, lng: 88.365806 },
+  { id: 25, name: "Moulali Crossing", area: "Moulali", lat: 22.561556, lng: 88.367056 },
+  { id: 26, name: "N.R.S Hospital", area: "Sealdah / NRS", lat: 22.564056, lng: 88.368111 },
+  { id: 27, name: "Sealdah Railway Station", area: "Sealdah Railway Station", lat: 22.565917, lng: 88.368778 },
+  { id: 28, name: "Rajabazar Tram Depot", area: "Rajabazar", lat: 22.574222, lng: 88.372778 }
+];
+
+const STOPS_21_RETURN = [
+  { id: 1, name: "Rajabazar Tram Depot", area: "Rajabazar", lat: 22.574139, lng: 88.373000 },
+  { id: 2, name: "Sealdah Railway Station", area: "Sealdah Railway Station", lat: 22.565750, lng: 88.369139 },
+  { id: 3, name: "N.R.S Hospital", area: "Sealdah / NRS", lat: 22.563944, lng: 88.368306 },
+  { id: 4, name: "Moulali Crossing", area: "Moulali", lat: 22.561611, lng: 88.367361 },
+  { id: 5, name: "Entally Market", area: "Entally", lat: 22.558250, lng: 88.366028 },
+  { id: 6, name: "Nonapukur Tram Depot", area: "Nonapukur / AJC Bose Road", lat: 22.550139, lng: 88.362944 },
+  { id: 7, name: "Mullick Bazar", area: "Mullick Bazar / Park Street", lat: 22.546583, lng: 88.361583 },
+  { id: 8, name: "Beck Bagan", area: "Park Circus / Beck Bagan", lat: 22.540944, lng: 88.358861 },
+  { id: 9, name: "Minto Park", area: "Park Street / Minto Park", lat: 22.541083, lng: 88.355111 },
+  { id: 10, name: "Exide More", area: "Rabindra Sadan / Exide", lat: 22.541528, lng: 88.347361 },
+  { id: 11, name: "Bhowanipore", area: "Bhowanipore", lat: 22.533250, lng: 88.346083 },
+  { id: 12, name: "Hazra More", area: "Hazra / Kalighat", lat: 22.523833, lng: 88.346417 },
+  { id: 13, name: "Rashbehari Crossing", area: "Rashbehari / Kalighat", lat: 22.517111, lng: 88.345972 },
+  { id: 14, name: "Tollygunge Police Station", area: "Tollygunge / Charu Market", lat: 22.515222, lng: 88.346194 },
+  { id: 15, name: "Mudiali", area: "Mudiali / Southern Avenue", lat: 22.511000, lng: 88.345972 },
+  { id: 16, name: "Rabindra Sarovar", area: "Rabindra Sarovar / Southern Avenue", lat: 22.507611, lng: 88.345639 },
+  { id: 17, name: "Tollygunge Phari", area: "Tollygunge", lat: 22.503333, lng: 88.345278 },
+  { id: 18, name: "Mahabirtala", area: "New Alipore / Mahabirtala", lat: 22.503528, lng: 88.340750 },
+  { id: 19, name: "Bhati Khana (Mahabirtala)", area: "Tollygunge / Bhati Khana", lat: 22.500139, lng: 88.340167 },
+  { id: 20, name: "South City Garden", area: "Siriti / South City Garden", lat: 22.495194, lng: 88.339667 },
+  { id: 21, name: "Siriti More (Behala)", area: "Siriti / Tollygunge", lat: 22.489500, lng: 88.338583 },
+  { id: 22, name: "Muchipara (Behala)", area: "Behala / Motilal Gupta Road", lat: 22.487194, lng: 88.332333 },
+  { id: 23, name: "Sodepur (Behala)", area: "Sodepur / Motilal Gupta Road", lat: 22.482833, lng: 88.328889 },
+  { id: 24, name: "Sitala Mandir (Motilal Gupta Road)", area: "Motilal Gupta Road", lat: 22.480778, lng: 88.322056 },
+  { id: 25, name: "Sakher Bazar James Long Crossing", area: "Sakherbazar / James Long Sarani", lat: 22.481056, lng: 88.313611 },
+  { id: 26, name: "Behala Sakherbazar", area: "Sakherbazar / DH Road", lat: 22.481500, lng: 88.310833 },
+  { id: 27, name: "Sakherbazar Metro", area: "Sakherbazar / Metro", lat: 22.474861, lng: 88.310111 },
+  { id: 28, name: "Behala Kadamtala", area: "Behala / Kadamtala", lat: 22.471750, lng: 88.310111 }
+];
+
+window.ROUTES_DATABASE = window.ROUTES_DATABASE || {};
+window.ROUTES_DATABASE["21"] = {
+  id: "21",
+  name: "21",
+  subTitle: "BEHALA KADAMTALA <-> SEALDAH STATION",
+  forwardStops: STOPS_21_FORWARD,
+  returnStops: STOPS_21_RETURN
+};
